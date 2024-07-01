@@ -1,0 +1,35 @@
+[package]
+name = "host-primitives"
+description = "Primitives that will be used in the zkEVM host program"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+reth-primitives.workspace = true
+reth-consensus.workspace = true
+reth-storage-errors.workspace = true
+reth-evm.workspace = true
+reth-trie-common.workspace = true
+revm.workspace = true
+alloy-provider.workspace = true
+alloy-primitives.workspace = true
+alloy-rlp.workspace = true
+alloy-rpc-types.workspace = true
+alloy-transport-http.workspace = true
+url.workspace = true
+reth-revm.workspace = true
+reth-node-ethereum.workspace = true
+revm-primitives.workspace = true
+eyre.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+ethers-providers = "2.0.14"
+async-std = "1.12.0"
+futures.workspace = true
+serde.workspace = true

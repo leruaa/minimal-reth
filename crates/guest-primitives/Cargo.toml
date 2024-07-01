@@ -1,0 +1,24 @@
+[package]
+name = "guest-primitives"
+description = "Methods that will be used in the zkEVM guest program."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+reth-primitives.workspace = true
+reth-consensus.workspace = true
+reth-evm.workspace = true
+revm.workspace = true
+reth-revm.workspace = true
+reth-node-ethereum.workspace = true
+revm-primitives.workspace = true
+eyre.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+reth-storage-errors.workspace = true
