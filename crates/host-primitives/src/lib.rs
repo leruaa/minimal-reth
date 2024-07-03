@@ -1,17 +1,15 @@
 use futures::future::join_all;
 use std::sync::{Arc, RwLock};
 
-use reth_storage_errors::provider::ProviderError;
 use alloy_provider::{Provider, ReqwestProvider};
 use alloy_rpc_types::{BlockId, EIP1186AccountProofResponse};
-use reth_trie_common::{AccountProof, StorageProof};
-use reth_primitives::{
-    Account, Address, B256, U256,
-};
+use reth_primitives::{Account, Address, B256, U256};
 use reth_revm::DatabaseRef;
+use reth_storage_errors::provider::ProviderError;
+use reth_trie_common::{AccountProof, StorageProof};
 use revm_primitives::{AccountInfo, Bytecode, HashMap, HashSet};
 
-
+// TODO: this should be upstreamed to Reth in the "rpc-types-compat" crate.
 pub fn convert_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
     let address = proof.address;
     let balance = proof.balance;
@@ -19,7 +17,11 @@ pub fn convert_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
     let nonce = proof.nonce.as_limbs()[0];
     let storage_hash = proof.storage_hash;
     let account_proof = proof.account_proof;
-    let account_info = Account { nonce, balance, bytecode_hash: code_hash.into() };
+    let account_info = Account {
+        nonce,
+        balance,
+        bytecode_hash: code_hash.into(),
+    };
     let storage_proofs = proof.storage_proof.into_iter().map(|storage_proof| {
         let key = storage_proof.key;
         let value = storage_proof.value;
@@ -96,7 +98,10 @@ impl RpcDb {
         println!("Inserting into address_to_account_info...");
 
         // Keep track of the account_info and code in the mappings for RpcDb.
-        self.address_to_account_info.write().unwrap().insert(address, account_info.clone());
+        self.address_to_account_info
+            .write()
+            .unwrap()
+            .insert(address, account_info.clone());
         println!("Fetched");
         account_info
     }
@@ -128,7 +133,11 @@ impl RpcDb {
             .get_block_by_number(num_u64.into(), false)
             .await
             .expect("Failed to get block");
-        let hash = block.expect("Block not found").header.hash.expect("Block hash not found");
+        let hash = block
+            .expect("Block not found")
+            .header
+            .hash
+            .expect("Block hash not found");
         self.block_hashes.write().unwrap().insert(number, hash);
         hash
     }
@@ -151,13 +160,21 @@ impl RpcDb {
                 let storage_keys: Vec<B256> = storage_guard
                     .get(address)
                     .map(|storage_map| {
-                        storage_map.keys().into_iter().map(|k| (*k).into()).collect()
+                        storage_map
+                            .keys()
+                            .into_iter()
+                            .map(|k| (*k).into())
+                            .collect()
                     })
                     .unwrap_or_else(Vec::new);
 
                 let provider = self.provider.clone();
                 async move {
-                    match provider.get_proof(*address, storage_keys).block_id(self.block).await {
+                    match provider
+                        .get_proof(*address, storage_keys)
+                        .block_id(self.block)
+                        .await
+                    {
                         Ok(proof) => Some((*address, proof)),
                         Err(_) => None,
                     }
@@ -171,32 +188,7 @@ impl RpcDb {
         // Collect results into a HashMap.
         results.into_iter().filter_map(|result| result).collect()
     }
-
-    // /// Constructs an SP1Input from a block.
-    // pub async fn get_sp1_input(&self, prev_block: &RethBlock, block: &RethBlock) -> SP1Input {
-    //     println!("Constructing SP1Input for block {:?}...", block.header.number);
-    //     let proofs = self.get_proofs().await;
-    //     let address_to_account_info = self.address_to_account_info.read().unwrap();
-    //     let converted_proofs: HashMap<_, _> = proofs
-    //         .iter()
-    //         .map(|(k, v)| {
-    //             let bytecode = address_to_account_info.get(k).unwrap().code.clone().unwrap();
-    //             let full_account_proof =
-    //                 FullAccountProof { account_proof: convert_proof(v.clone()), code: bytecode };
-    //             (*k, full_account_proof)
-    //         })
-    //         .collect();
-    //     let block_hashes = self.block_hashes.read().unwrap().clone();
-    //     SP1Input {
-    //         prev_block: prev_block.clone(),
-    //         block: block.clone(),
-    //         address_to_proof: converted_proofs,
-    //         block_hashes,
-    //     }
-    // }
 }
-
-// TODO: implement a function to convert RpcDb to a WitnessDb.
 
 impl DatabaseRef for RpcDb {
     type Error = ProviderError;
@@ -217,7 +209,9 @@ impl DatabaseRef for RpcDb {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            Ok(tokio::task::block_in_place(|| handle.block_on(self.fetch_storage(address, index))))
+            Ok(tokio::task::block_in_place(|| {
+                handle.block_on(self.fetch_storage(address, index))
+            }))
         } else {
             panic!("No tokio runtime found");
         }
@@ -225,7 +219,9 @@ impl DatabaseRef for RpcDb {
 
     fn block_hash_ref(&self, number: U256) -> Result<B256, Self::Error> {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            Ok(tokio::task::block_in_place(|| handle.block_on(self.fetch_block_hash(number))))
+            Ok(tokio::task::block_in_place(|| {
+                handle.block_on(self.fetch_block_hash(number))
+            }))
         } else {
             panic!("No tokio runtime found");
         }
