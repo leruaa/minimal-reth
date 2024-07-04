@@ -1,0 +1,24 @@
+[package]
+name = "zk-host"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+version.workspace = true
+
+[dependencies]
+alloy-primitives.workspace = true
+eyre.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", tag = "v1.0.7-testnet" }
+guest-primitives = { path = "../../crates/guest-primitives" }
+
+[build-dependencies]
+sp1-helper = { git = "https://github.com/succinctlabs/sp1.git", tag = "v1.0.7-testnet" }
+
+
+[lints]
+workspace = true

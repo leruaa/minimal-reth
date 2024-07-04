@@ -33,3 +33,4 @@ ethers-providers = "2.0.14"
 async-std = "1.12.0"
 futures.workspace = true
 serde.workspace = true
+guest-primitives = { path = "../../crates/guest-primitives" }

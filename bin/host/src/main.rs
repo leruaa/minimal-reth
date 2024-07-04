@@ -1,6 +1,8 @@
 //! A simple host program that takes in a block number and RPC, and executes the block while
 //! fetching state from an RpcDb.
 use std::collections::{BTreeMap, HashSet};
+use std::fs::File;
+use std::io::BufWriter;
 
 use alloy_primitives::Bytes;
 use alloy_provider::Provider;
@@ -76,6 +78,11 @@ async fn main() -> eyre::Result<()> {
         )
             .into(),
     )?;
+
+    let witness_db = provider_db.into_witness_db();
+
+    let mut witness_db_file = File::create("./db.json")?;
+    serde_json::to_writer_pretty(&mut witness_db_file, &witness_db)?;
 
     // TODO: construct the new block header from this information
 

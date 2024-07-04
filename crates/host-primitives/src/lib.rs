@@ -1,4 +1,7 @@
+//! Host primitives
+
 use futures::future::join_all;
+use guest_primitives::witness::WitnessDb;
 use std::sync::{Arc, RwLock};
 
 use alloy_provider::{Provider, ReqwestProvider};
@@ -104,6 +107,31 @@ impl RpcDb {
             .insert(address, account_info.clone());
         println!("Fetched");
         account_info
+    }
+
+    /// Convert this fetched [`RpcDb`] to a [`WitnessDb`] that can be serialized.
+    pub fn into_witness_db(self) -> WitnessDb {
+        let address_to_account_info = match Arc::try_unwrap(self.address_to_account_info) {
+            Ok(lock) => lock.into_inner().unwrap(),
+            Err(arc) => arc.read().unwrap().clone(),
+        };
+
+        let address_to_storage = match Arc::try_unwrap(self.address_to_storage) {
+            Ok(lock) => lock.into_inner().unwrap(),
+            Err(arc) => arc.read().unwrap().clone(),
+        };
+
+        let block_hashes = match Arc::try_unwrap(self.block_hashes) {
+            Ok(lock) => lock.into_inner().unwrap(),
+            Err(arc) => arc.read().unwrap().clone(),
+        };
+
+        WitnessDb {
+            address_to_account_info,
+            address_to_storage,
+            block_hashes,
+            state_root: self.state_root,
+        }
     }
 
     /// Fetch the storage for an address and index.

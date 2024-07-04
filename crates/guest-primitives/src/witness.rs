@@ -2,7 +2,9 @@ use reth_primitives::B256;
 use reth_storage_errors::provider::ProviderError;
 use revm::DatabaseRef;
 use revm_primitives::{AccountInfo, Address, Bytecode, HashMap, U256};
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WitnessDb {
     pub address_to_account_info: HashMap<Address, AccountInfo>,
     pub address_to_storage: HashMap<Address, HashMap<U256, U256>>,

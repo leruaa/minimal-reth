@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "bin/host"]
+members = ["crates/*", "bin/host", "bin/zk-host"]
 # default-members = ["bin/host", "bin/client"]
 exclude = []
 resolver = "2"
