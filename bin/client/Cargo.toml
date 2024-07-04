@@ -5,5 +5,8 @@ name = "minimal-reth-program"
 edition = "2021"
 
 [dependencies]
+revm-primitives = { version = "5.0.0", features = [
+    "serde",
+], default-features = false }
+serde = { version = "1.0", default-features = false }
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }
-guest-primitives = { path = "../../crates/guest-primitives" }

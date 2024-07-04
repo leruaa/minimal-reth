@@ -11,7 +11,7 @@ const ELF: &[u8] = include_bytes!("../../client/elf/riscv32im-succinct-zkvm-elf"
 
 fn main() -> eyre::Result<()> {
     // TODO: read the db JSON file from CLI arg.
-    let db = serde_json::from_reader::<_, WitnessDb>(File::open("../")?)?;
+    let db = serde_json::from_reader::<_, WitnessDb>(File::open("../host/db.json")?)?;
 
     // Setup the logger.
     sp1_sdk::utils::setup_logger();
