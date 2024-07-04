@@ -1,5 +1,6 @@
 use futures::future::join_all;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use alloy_provider::{Provider, ReqwestProvider};
 use alloy_rpc_types::{BlockId, EIP1186AccountProofResponse};
@@ -7,7 +8,7 @@ use reth_primitives::{Account, Address, B256, U256};
 use reth_revm::DatabaseRef;
 use reth_storage_errors::provider::ProviderError;
 use reth_trie_common::{AccountProof, StorageProof};
-use revm_primitives::{AccountInfo, Bytecode, HashMap, HashSet};
+use revm_primitives::{hash_map::Entry, AccountInfo, Bytecode, HashMap, HashSet};
 
 // TODO: this should be upstreamed to Reth in the "rpc-types-compat" crate.
 pub fn convert_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
@@ -70,76 +71,100 @@ impl RpcDb {
 
     /// Fetch the account info (and code) for an address.
     pub async fn fetch_account_info(&self, address: Address) -> AccountInfo {
-        println!("Fetching account info for address {address:?}...");
-        // TODO: when alloy adds a `eth_getAccount` method, we can use that here to save RPC load,
-        // since getProof is expensive.
-        let proof = self
-            .provider
-            .get_proof(address, vec![])
-            .block_id(self.block)
-            .await
-            .expect("Failed to get proof");
-        println!("Fetched proof for address {address:?}...");
-        let code = self
-            .provider
-            .get_code_at(address)
-            .block_id(self.block)
-            .await
-            .expect("Failed to get code");
-        println!("Fetched code for address {address:?}...");
-        let bytecode = Bytecode::new_raw(code);
+        let mut address_to_account_info = self.address_to_account_info.write().await;
 
-        let account_info = AccountInfo {
-            nonce: proof.nonce.as_limbs()[0],
-            balance: proof.balance,
-            code_hash: proof.code_hash,
-            code: Some(bytecode.clone()),
-        };
-        println!("Inserting into address_to_account_info...");
+        match address_to_account_info.entry(address) {
+            Entry::Occupied(e) => {
+                println!("Retrieving account info for address {address:?} from cache");
+                e.get().clone()
+            }
+            Entry::Vacant(e) => {
+                println!("Fetching account info for address {address:?}...");
+                // TODO: when alloy adds a `eth_getAccount` method, we can use that here to save RPC load,
+                // since getProof is expensive.
+                let proof = self
+                    .provider
+                    .get_proof(address, vec![])
+                    .block_id(self.block)
+                    .await
+                    .expect("Failed to get proof");
+                println!("Fetched proof for address {address:?}...");
+                let code = self
+                    .provider
+                    .get_code_at(address)
+                    .block_id(self.block)
+                    .await
+                    .expect("Failed to get code");
+                println!("Fetched code for address {address:?}...");
+                let bytecode = Bytecode::new_raw(code);
 
-        // Keep track of the account_info and code in the mappings for RpcDb.
-        self.address_to_account_info
-            .write()
-            .unwrap()
-            .insert(address, account_info.clone());
-        println!("Fetched");
-        account_info
+                let account_info = AccountInfo {
+                    nonce: proof.nonce.as_limbs()[0],
+                    balance: proof.balance,
+                    code_hash: proof.code_hash,
+                    code: Some(bytecode.clone()),
+                };
+                println!("Inserting into address_to_account_info...");
+                println!("Fetched");
+                // Keep track of the account_info and code in the mappings for RpcDb.
+                e.insert(account_info).clone()
+            }
+        }
     }
 
     /// Fetch the storage for an address and index.
     async fn fetch_storage(&self, address: Address, index: U256) -> U256 {
-        println!("Fetching storage for address {address:?} and index {index:?}...");
-        let value = self
-            .provider
-            .get_storage_at(address, index)
-            .block_id(self.block)
-            .await
-            .expect("Failed to get storage");
-        self.address_to_storage
-            .write()
-            .unwrap()
-            .entry(address)
-            .or_insert_with(HashMap::new)
-            .insert(index, value);
-        value
+        let mut address_to_storage = self.address_to_storage.write().await;
+        let storage = address_to_storage.entry(address).or_default();
+
+        match storage.entry(index) {
+            Entry::Occupied(e) => {
+                println!(
+                    "Retrieving storage for address {address:?} and index {index:?} from cache"
+                );
+                *e.get()
+            }
+            Entry::Vacant(e) => {
+                println!("Fetching storage for address {address:?} and index {index:?}...");
+
+                let value = self
+                    .provider
+                    .get_storage_at(address, index)
+                    .block_id(self.block)
+                    .await
+                    .expect("Failed to get storage");
+
+                *e.insert(value)
+            }
+        }
     }
 
     /// Fetch the block hash for a block number.
     async fn fetch_block_hash(&self, number: U256) -> B256 {
-        println!("Fetching block hash for number: {:?}", number);
-        let num_u64 = number.as_limbs()[0];
-        let block = self
-            .provider
-            .get_block_by_number(num_u64.into(), false)
-            .await
-            .expect("Failed to get block");
-        let hash = block
-            .expect("Block not found")
-            .header
-            .hash
-            .expect("Block hash not found");
-        self.block_hashes.write().unwrap().insert(number, hash);
-        hash
+        let mut block_hashes = self.block_hashes.write().await;
+
+        match block_hashes.entry(number) {
+            Entry::Occupied(e) => {
+                println!("Retrieving block hash for number: {:?}from cache", number);
+                *e.get()
+            }
+            Entry::Vacant(e) => {
+                println!("Fetching block hash for number: {:?}", number);
+                let num_u64 = number.as_limbs()[0];
+                let block = self
+                    .provider
+                    .get_block_by_number(num_u64.into(), false)
+                    .await
+                    .expect("Failed to get block");
+                let hash = block
+                    .expect("Block not found")
+                    .header
+                    .hash
+                    .expect("Block hash not found");
+
+                *e.insert(hash)
+            }
+        }
     }
 
     /// Given all of the account and storage accesses in a block, fetch merkle proofs for all of
@@ -147,8 +172,8 @@ impl RpcDb {
     async fn get_proofs(&self) -> HashMap<Address, EIP1186AccountProofResponse> {
         println!("Fetching proofs...");
         // Acquire read locks at the top
-        let account_info = self.address_to_account_info.read().unwrap();
-        let storage_guard = self.address_to_storage.read().unwrap();
+        let account_info = self.address_to_account_info.read().await;
+        let storage_guard = self.address_to_storage.read().await;
 
         let mut addresses: HashSet<&Address> = account_info.keys().collect();
         addresses.extend(storage_guard.keys());
