@@ -1,3 +1,5 @@
+//! Host primitives
+
 use futures::future::join_all;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -27,7 +29,7 @@ pub fn convert_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
         let key = storage_proof.key;
         let value = storage_proof.value;
         let proof = storage_proof.proof;
-        let mut sp = StorageProof::new(key.0.into());
+        let mut sp = StorageProof::new(key.0);
         sp.set_value(value);
         sp.set_proof(proof);
         sp
@@ -36,7 +38,7 @@ pub fn convert_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
         address,
         info: Some(account_info),
         proof: account_proof,
-        storage_root: storage_hash.into(),
+        storage_root: storage_hash,
         storage_proofs: storage_proofs.collect(),
     }
 }
@@ -184,13 +186,7 @@ impl RpcDb {
             .map(|address| {
                 let storage_keys: Vec<B256> = storage_guard
                     .get(address)
-                    .map(|storage_map| {
-                        storage_map
-                            .keys()
-                            .into_iter()
-                            .map(|k| (*k).into())
-                            .collect()
-                    })
+                    .map(|storage_map| storage_map.keys().map(|k| (*k).into()).collect())
                     .unwrap_or_else(Vec::new);
 
                 let provider = self.provider.clone();
@@ -211,7 +207,7 @@ impl RpcDb {
         let results = join_all(futures).await;
 
         // Collect results into a HashMap.
-        results.into_iter().filter_map(|result| result).collect()
+        results.into_iter().flatten().collect()
     }
 }
 
