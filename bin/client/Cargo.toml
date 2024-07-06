@@ -8,5 +8,7 @@ edition = "2021"
 revm-primitives = { version = "5.0.0", features = [
     "serde",
 ], default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "fe94078e004223d74f06fcf2f4a02bd2b2ee3835", default-features = false }
 serde = { version = "1.0", default-features = false }
+getrandom = { version = "0.1.16", features = ["dummy"] }
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }

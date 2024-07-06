@@ -2,13 +2,16 @@
 
 #![no_main]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
+use reth_chainspec::ChainSpecBuilder;
 use revm_primitives::{Address, Bytecode, B256, U256};
 use serde::{Deserialize, Serialize};
 
 sp1_zkvm::entrypoint!(main);
 
+// TODD: Use WitnessDb and AccountInfo from guest-primitives crate
+// when it will build
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WitnessDb {
     pub address_to_account_info: HashMap<Address, AccountInfo>,
@@ -33,6 +36,8 @@ pub struct AccountInfo {
 
 pub fn main() {
     let db = sp1_zkvm::io::read::<WitnessDb>();
+
+    let chain_spec = Arc::new(ChainSpecBuilder::mainnet().build());
 
     // TODO: Do something useful
 
